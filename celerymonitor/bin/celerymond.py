@@ -76,16 +76,16 @@ def run_monitor(loglevel=conf.CELERYMON_LOG_LEVEL,
     def _run_monitor():
         logger = setup_logger(loglevel, logfile)
         monitor = MonitorService(logger=logger, http_port=http_port)
-
         try:
             monitor.start()
         except Exception, e:
             emergency_error(logfile,
                     "celerymon raised exception %s: %s\n%s" % (
                             e.__class__, e, traceback.format_exc()))
+        while(True):
+            pass
 
     _run_monitor()
-
 
 def parse_options(arguments):
     """Parse the available options to ``celerymon``."""
