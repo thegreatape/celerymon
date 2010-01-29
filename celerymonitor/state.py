@@ -9,10 +9,29 @@ class MonitorState(object):
 
     def __init__(self):
         self.hearts = {}
-        self.tasks = {}
-        self.task_events = defaultdict(lambda: [])
-        self.workers = defaultdict(lambda: [])
+        self.tasks = defaultdict(lambda: defaultdict(lambda: 0))
+        self.workers = defaultdict(lambda: {'jobs': defaultdict(lambda: 0)})
 
+    # ---------------
+    # event recievers
+    # ---------------
+    def receive_worker_event(self, event):
+        #self.workers[event["hostname"]]
+        pass
+
+    def receive_task_event(self, event):
+        if event['type'] == 'task-received':
+            self.tasks[event['name']][event['type']] += 1
+
+    def receive_heartbeat(self, event):
+        self.hearts[event["hostname"]] = event["timestamp"]
+
+    def receive_task_received(self, event):
+        self.workers[event["hostname"]]['jobs'][event["name"]] += 1
+
+    # ---------------------
+    # informational methods
+    # ---------------------
     def tasks_by_type(self):
         t = defaultdict(lambda: [])
         for id, events in self.task_events.items():
@@ -39,25 +58,8 @@ class MonitorState(object):
 
         return task_info
 
-    def receive_task_event(self, event):
-        event["state"] = event.pop("type")
-        event["when"] = self.timestamp_to_isoformat(event["timestamp"])
-        self.task_events[event["uuid"]].append(event)
-
     def timestamp_to_isoformat(self, timestamp):
         return datetime.fromtimestamp(timestamp).isoformat()
-
-    def receive_heartbeat(self, event):
-        self.hearts[event["hostname"]] = event["timestamp"]
-
-    def receive_task_received(self, event):
-        task_info = dict(event)
-        event = dict(event)
-        task_info.pop("type")
-        event["state"] = event.pop("type")
-        event["when"] = self.timestamp_to_isoformat(event["timestamp"])
-        self.tasks[task_info["uuid"]] = task_info
-        self.task_events[event["uuid"]].append(event)
 
     def list_workers(self):
         alive_workers = []
@@ -75,11 +77,6 @@ class MonitorState(object):
                     tasks_for_worker[hostname].append(task_id)
         return tasks_for_worker
 
-    def receive_worker_event(self, event):
-        event["state"] = event.pop("type")
-        event["when"] = self.timestamp_to_isoformat(event["timestamp"])
-        self.workers[event["hostname"]].append(event)
-
     def worker_is_alive(self, hostname):
         last_worker_event = self.workers[hostname][-1]
         if last_worker_event and last_worker_event == "worker-online":
@@ -89,9 +86,8 @@ class MonitorState(object):
         return False
 
     def tasks_by_time(self):
-        return dict(sorted(self.task_events.items(),
-                        key=lambda uuid__events: uuid__events[1][-1]["timestamp"]))
-
+        pass
+    
     def tasks_by_last_state(self):
         return [events[-1] for event in self.task_by_time()]
 
